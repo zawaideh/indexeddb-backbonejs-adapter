@@ -12,8 +12,8 @@ module.exports = function(grunt) {
 		'saucelabs-qunit': {
 			all: {
 				options: {
-		    			username: 'idbbackbone',
-		    			key: '6ffa8cb3-47f3-4532-aedb-aee964d0eefb',
+		    			username: 'zzawaideh',
+		    			key: '6c133591-a7d0-4959-bf19-2757c354e3d4',
 		    			urls: ['http://127.0.0.1:9999/tests/test.html'],
 		    			build: process.env.TRAVIS_JOB_ID,
 		    			concurrency: 2,
