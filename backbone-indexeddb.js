@@ -31,7 +31,7 @@
      window.IDBCursor = window.IDBCursor || window.webkitIDBCursor ||  window.mozIDBCursor ||  window.msIDBCursor ;
 
     if ( _(indexedDB).isUndefined() ) { return; }
-    
+
     // Driver object
     // That's the interesting part.
     // There is a driver for each schema provided. The schema is a te combination of name (for the database), a version as well as migrations to reach that
@@ -230,7 +230,7 @@
             var json = object.toJSON();
             var writeRequest;
 
-            if (json.id === undefined && !store.autoIncrement) json.id = guid();
+            if (object.id === undefined && !store.autoIncrement) json[object.idAttribute] = guid();
 
             writeTransaction.onerror = function (e) {
                 options.error(e);
@@ -240,7 +240,7 @@
             };
 
             if (!store.keyPath)
-                writeRequest = store.add(json, json.id);
+                writeRequest = store.add(json, object.id);
             else
                 writeRequest = store.add(json);
         },
@@ -254,10 +254,10 @@
             var json = object.toJSON();
             var writeRequest;
 
-            if (!json.id) json.id = guid();
+            if (!object.id) json[idAttribute] = guid();
 
             if (!store.keyPath)
-              writeRequest = store.put(json, json.id);
+              writeRequest = store.put(json, object.id);
             else
               writeRequest = store.put(json);
 
@@ -278,8 +278,8 @@
             var json = object.toJSON();
 
             var getRequest = null;
-            if (json.id) {
-                getRequest = store.get(json.id);
+            if (object.id) {
+                getRequest = store.get(object.id);
             } else if(options.index) {
                 var index = store.index(options.index.name);
                 getRequest = index.get(options.index.value);
@@ -330,9 +330,8 @@
             //this._track_transaction(deleteTransaction);
 
             var store = deleteTransaction.objectStore(storeName);
-            var json = object.toJSON();
 
-            var deleteRequest = store.delete(json.id);
+            var deleteRequest = store.delete(object.id);
 
             deleteTransaction.oncomplete = function (event) {
                 options.success(null);
