@@ -22,14 +22,7 @@
     function guid() {
         return (S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4());
     }
-
-     // Naming is a mess!
-     var indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.msIndexedDB ;
-     var IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || { READ_WRITE: "readwrite" }; // No prefix in moz
-     var IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange ; // No prefix in moz
-
-     window.IDBCursor = window.IDBCursor || window.webkitIDBCursor ||  window.mozIDBCursor ||  window.msIDBCursor ;
-
+    indexedDB = window.indexedDB;
     if ( _(indexedDB).isUndefined() ) { return; }
 
     // Driver object
@@ -48,18 +41,26 @@
         if (!this.nolog) debugLog("opening database " + this.schema.id + " in version #" + lastMigrationPathVersion);
         this.dbRequest      = indexedDB.open(this.schema.id,lastMigrationPathVersion); //schema version need to be an unsigned long
 
+        if (this.dbRequest == null) {
+            this.onerror();
+            return this;
+        }
+
         this.launchMigrationPath = function(dbVersion) {
             var transaction = this.dbRequest.transaction;
             var clonedMigrations = _.clone(schema.migrations);
             this.migrate(transaction, clonedMigrations, dbVersion, {
                 error: function (event) {
                     this.error = "Database not up to date. " + dbVersion + " expected was " + lastMigrationPathVersion;
+                    this.onerror();
+                    alert('Error in creating local database.');
                 }.bind(this)
             });
         };
 
         this.dbRequest.onblocked = function(event){
             if (!this.nolog) debugLog("connection to database blocked");
+            alert('UPDATE REQUIRED: Please close all other browser windows/tabs.');
         }
 
         this.dbRequest.onsuccess = function (e) {
@@ -138,7 +139,7 @@
             var that = this;
             var migration = migrations.shift();
             if (migration) {
-                if (!version || version < migration.version) {
+                if (!version || version < migration.version || version > 1000) { // version > 1000 is a fix for safari reporting a huge initial version
                     // We need to apply this migration-
                     if (typeof migration.before == "undefined") {
                         migration.before = function (next) {
@@ -228,9 +229,10 @@
             //this._track_transaction(writeTransaction);
             var store = writeTransaction.objectStore(storeName);
             var json = object.toJSON();
+            var idAttribute = _.result(object, 'idAttribute');
             var writeRequest;
 
-            if (object.id === undefined && !store.autoIncrement) json[object.idAttribute] = guid();
+            if (json[idAttribute] === undefined && !store.autoIncrement) json[idAttribute] = guid();
 
             writeTransaction.onerror = function (e) {
                 options.error(e);
@@ -240,7 +242,7 @@
             };
 
             if (!store.keyPath)
-                writeRequest = store.add(json, object.id);
+                writeRequest = store.add(json, json[idAttribute]);
             else
                 writeRequest = store.add(json);
         },
@@ -252,12 +254,13 @@
             //this._track_transaction(writeTransaction);
             var store = writeTransaction.objectStore(storeName);
             var json = object.toJSON();
+            var idAttribute = _.result(object, 'idAttribute');
             var writeRequest;
 
-            if (!object.id) json[idAttribute] = guid();
+            if (!json[idAttribute]) json[idAttribute] = guid();
 
             if (!store.keyPath)
-              writeRequest = store.put(json, object.id);
+              writeRequest = store.put(json, json[idAttribute]);
             else
               writeRequest = store.put(json);
 
@@ -278,8 +281,8 @@
             var json = object.toJSON();
 
             var getRequest = null;
-            if (object.id) {
-                getRequest = store.get(object.id);
+            if (json.id) {
+                getRequest = store.get(json.id);
             } else if(options.index) {
                 var index = store.index(options.index.name);
                 getRequest = index.get(options.index.value);
@@ -330,8 +333,9 @@
             //this._track_transaction(deleteTransaction);
 
             var store = deleteTransaction.objectStore(storeName);
+            var json = object.toJSON();
 
-            var deleteRequest = store.delete(object.id);
+            var deleteRequest = store.delete(json.id);
 
             deleteTransaction.oncomplete = function (event) {
                 options.success(null);
@@ -492,12 +496,12 @@
     // The execution queue is an abstraction to buffer up requests to the database.
     // It holds a "driver". When the driver is ready, it just fires up the queue and executes in sync.
     function ExecutionQueue(schema,next,nolog) {
-        this.driver     = new Driver(schema, this.ready.bind(this), nolog, this.error.bind(this));
         this.started    = false;
         this.failed     = false;
         this.stack      = [];
         this.version    = _.last(schema.migrations).version;
         this.next       = next;
+        this.driver     = new Driver(schema, this.ready.bind(this), nolog, this.error.bind(this));
     }
 
     // ExecutionQueue Prototype
@@ -514,9 +518,9 @@
         },
 
         error: function() {
-            this.failed = true;
+            this.failed = true
             _.each(this.stack, function (message) {
-                this.execute(message);
+                this.execute(message)
             }.bind(this));
             this.stack = [];
             this.next();
@@ -527,6 +531,7 @@
             if (this.started) {
                 this.driver.execute(message[2].storeName || message[1].storeName, message[0], message[1], message[2]); // Upon messages, we execute the query
             } else if (this.failed) {
+                message[1].trigger('idb:error', message[1])
                 message[2].error();
             } else {
                 this.stack.push(message);
@@ -598,7 +603,11 @@
         };
 
         var next = function(){
-            Databases[schema.id].execute([method, object, options]);
+            if (!Databases[schema.id]) {
+                object.trigger('idb:error', 'failed to initialize databse');
+            } else {
+                Databases[schema.id].execute([method, object, options]);
+            }
         };
 
         if (!Databases[schema.id]) {
