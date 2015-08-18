@@ -333,9 +333,8 @@
             //this._track_transaction(deleteTransaction);
 
             var store = deleteTransaction.objectStore(storeName);
-            var json = object.toJSON();
 
-            var deleteRequest = store.delete(json.id);
+            var deleteRequest = store.delete(object.id);
 
             deleteTransaction.oncomplete = function (event) {
                 options.success(null);
