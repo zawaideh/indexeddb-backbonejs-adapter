@@ -246,6 +246,25 @@ var tests = [
             }
         });
     }],
+    ["create model with id", function () {
+        var movie = new Movie();
+        movie.save({
+            title: "The Matrix",
+            format: "dvd"
+        }, {
+            success: function () {
+                start();
+                equal(movie.id !== undefined, true, "The movie should be saved successfully with an id");
+                nextTest();
+            },
+            error: function (o, error) {
+                start();
+                if (window.console && window.console.log) window.console.log(error);
+                equal(true, false, error.error.target.webkitErrorMessage);
+                nextTest();
+            }
+        });
+    }],
     ["read model with id", function () {
         var movie = new Movie();
         movie.save({

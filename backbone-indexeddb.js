@@ -245,6 +245,13 @@
                 writeRequest = store.add(json, json[idAttribute]);
             else
                 writeRequest = store.add(json);
+
+            writeRequest.onsuccess = function (e) {
+                if (store.autoIncrement) {
+                    json[idAttribute] = e.result.target;
+                }
+                object.set(idAttribute, json[idAttribute]);
+            };
         },
 
         // Writes the json to the storeName in db. It is an update operation, which means it will overwrite the value if the key already exist
