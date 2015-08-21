@@ -248,7 +248,7 @@
 
             writeRequest.onsuccess = function (e) {
                 if (store.autoIncrement) {
-                    json[idAttribute] = e.result.target;
+                    json[idAttribute] = e.target.result;
                 }
                 object.set(idAttribute, json[idAttribute]);
             };
