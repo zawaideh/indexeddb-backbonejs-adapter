@@ -1,3 +1,5 @@
+// from: https://github.com/zawaideh/indexeddb-backbonejs-adapter
+
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -13,15 +15,16 @@
     }
 }(this, function (Backbone, _) {
 
-    // Generate four random hex digits.
-    function S4() {
+    if (_.guid === undefined) {
+      _.guid = function() {
+        return _.s4() + _.s4() + "-" + _.s4() + "-" + _.s4() + "-" + _.s4() + "-" + _.s4() + _.s4() + _.s4();
+      };
+
+      _.s4 = function() {
         return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
+      };
     }
 
-    // Generate a pseudo-GUID by concatenating random hexadecimal.
-    function guid() {
-        return (S4() + S4() + "-" + S4() + "-" + S4() + "-" + S4() + "-" + S4() + S4() + S4());
-    }
     indexedDB = window.indexedDB;
     if ( _(indexedDB).isUndefined() ) { return; }
 
@@ -232,7 +235,7 @@
             var idAttribute = _.result(object, 'idAttribute');
             var writeRequest;
 
-            if (json[idAttribute] === undefined && !store.autoIncrement) json[idAttribute] = guid();
+            if (json[idAttribute] === undefined && !store.autoIncrement) json[idAttribute] = _.guid();
 
             writeTransaction.onerror = function (e) {
                 options.error(e);
@@ -264,7 +267,7 @@
             var idAttribute = _.result(object, 'idAttribute');
             var writeRequest;
 
-            if (!json[idAttribute]) json[idAttribute] = guid();
+            if (!json[idAttribute]) json[idAttribute] = _.guid();
 
             if (!store.keyPath)
               writeRequest = store.put(json, json[idAttribute]);
@@ -279,17 +282,18 @@
             };
         },
 
-        // Reads from storeName in db with json.id if it's there of with any json.xxxx as long as xxx is an index in storeName
+        // Reads from storeName in db with object.id if it's there of with any json.xxxx as long as xxx is an index in storeName
         read: function (storeName, object, options) {
             var readTransaction = this.db.transaction([storeName], "readonly");
             this._track_transaction(readTransaction);
 
+            var idAttribute = _.result(object, 'idAttribute');
             var store = readTransaction.objectStore(storeName);
             var json = object.toJSON();
 
             var getRequest = null;
-            if (json.id) {
-                getRequest = store.get(json.id);
+            if (json[idAttribute]) {
+                getRequest = store.get(json[idAttribute]);
             } else if(options.index) {
                 var index = store.index(options.index.name);
                 getRequest = index.get(options.index.value);
@@ -334,7 +338,7 @@
             }
         },
 
-        // Deletes the json.id key and value in storeName from db.
+        // Deletes the object.id key and value in storeName from db.
         delete: function (storeName, object, options) {
             var deleteTransaction = this.db.transaction([storeName], 'readwrite');
             //this._track_transaction(deleteTransaction);
@@ -626,7 +630,7 @@
     };
 
     Backbone.ajaxSync = Backbone.sync;
-    Backbone.sync = sync;
+    Backbone.localSync = sync;
 
     return { sync: sync, debugLog: debugLog};
 }));
