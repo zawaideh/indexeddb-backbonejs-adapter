@@ -631,6 +631,7 @@
 
     Backbone.ajaxSync = Backbone.sync;
     Backbone.localSync = sync;
+    Backbone.sync = sync;
 
     return { sync: sync, debugLog: debugLog};
 }));
